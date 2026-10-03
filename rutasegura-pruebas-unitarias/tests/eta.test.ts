@@ -1,24 +1,49 @@
 import { calcularMinutosEstimados, calcularHoraEstimadaLlegada } from '../src/eta';
 
-// TODO: escribir las pruebas de RN-01 a RN-05.
-// Recuerden: caso feliz + valores límite + casos de error. Un describe por regla.
+describe('Módulo ETA (RN-01 a RN-05)', () => {
+  // RN-01
+  it('calcularMinutosEstimados_conDatosValidos_debeRetornarMinutosRedondeadosArriba', () => {
+    // 10km / 40km/h * 60 * 1.5 = 22.5 -> redondeado arriba es 23
+    expect(calcularMinutosEstimados(40, 10, 1.5)).toBe(23);
+  });
 
-describe('RN-01 calcularMinutosEstimados - fórmula', () => {
-  it.todo('calcularMinutosEstimados_conDatosNormales_debeCalcularSegunFormula');
-});
+  // RN-02
+  it('calcularMinutosEstimados_conDistanciaCero_debeRetornarCero', () => {
+    expect(calcularMinutosEstimados(0, 0, 1.0)).toBe(0);
+  });
 
-describe('RN-02 calcularMinutosEstimados - bus detenido / en paradero', () => {
-  it.todo('calcularMinutosEstimados_conVelocidadCero_debeRetornarNull');
-});
+  it('calcularMinutosEstimados_conVelocidadCero_debeRetornarNull', () => {
+    expect(calcularMinutosEstimados(0, 10, 1.0)).toBeNull();
+  });
 
-describe('RN-03 calcularMinutosEstimados - datos negativos', () => {
-  it.todo('calcularMinutosEstimados_conDistanciaNegativa_debeLanzarRangeError');
-});
+  // RN-03
+  it('calcularMinutosEstimados_conValoresNegativos_debeLanzarError', () => {
+    expect(() => calcularMinutosEstimados(-10, 10, 1.0)).toThrow(RangeError);
+    expect(() => calcularMinutosEstimados(40, -10, 1.0)).toThrow(RangeError);
+  });
 
-describe('RN-04 calcularMinutosEstimados - rango del factor de tráfico', () => {
-  it.todo('calcularMinutosEstimados_conFactorEnLimiteSuperior_debeCalcular');
-});
+  // RN-04
+  it('calcularMinutosEstimados_conFactorFueraDeRango_debeLanzarError', () => {
+    expect(() => calcularMinutosEstimados(40, 10, 0.9)).toThrow(RangeError);
+    expect(() => calcularMinutosEstimados(40, 10, 3.1)).toThrow(RangeError);
+  });
 
-describe('RN-05 calcularHoraEstimadaLlegada', () => {
-  it.todo('calcularHoraEstimadaLlegada_conDatosNormales_debeSumarMinutosAHoraActual');
+  // RN-05
+  it('calcularHoraEstimadaLlegada_conDatosValidos_debeRetornarFechaNueva', () => {
+    const horaActual = new Date(2026, 8, 22, 6, 30);
+    const resultado = calcularHoraEstimadaLlegada(40, 10, 1.5, horaActual);
+    
+    // Debería sumar 23 minutos (6:30 + 23 = 6:53)
+    expect(resultado).toEqual(new Date(2026, 8, 22, 6, 53));
+  });
+
+  it('calcularHoraEstimadaLlegada_inmutabilidad_noDebeModificarFechaOriginal', () => {
+    const horaActual = new Date(2026, 8, 22, 6, 30);
+    const clonHora = new Date(horaActual.getTime());
+    
+    calcularHoraEstimadaLlegada(40, 10, 1.5, horaActual);
+    
+    // Verificamos que la variable original no cambió
+    expect(horaActual).toEqual(clonHora);
+  });
 });

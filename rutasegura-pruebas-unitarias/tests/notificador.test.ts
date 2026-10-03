@@ -1,28 +1,70 @@
-import { NotificadorAcudientes, ServicioMensajeria, Acudiente } from '../src/notificador';
+import { NotificadorAcudientes } from '../src/notificador';
 
-// TODO: escribir las pruebas de RN-10 a RN-13 usando un MOCK del servicio de mensajería.
-// Pista para crear el mock:
-//
-//   const mensajeria: jest.Mocked<ServicioMensajeria> = {
-//     enviarSMS: jest.fn().mockResolvedValue(true),
-//   };
-//   const notificador = new NotificadorAcudientes(mensajeria);
-//
-// Matchers útiles: toHaveBeenCalledTimes, toHaveBeenCalledWith, not.toHaveBeenCalled
-// Para simular un fallo: mensajeria.enviarSMS.mockRejectedValueOnce(new Error('Sin señal'))
+describe('Módulo Notificador (RN-10 a RN-13)', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mensajeria: any;
+  let notificador: NotificadorAcudientes;
 
-describe('RN-10 notificarProximidad - umbral de minutos', () => {
-  it.todo('notificarProximidad_conBusAMasDeDiezMinutos_noDebeEnviarSMS');
-});
+  beforeEach(() => {
+    mensajeria = { enviarSMS: jest.fn().mockResolvedValue(true) };
+    notificador = new NotificadorAcudientes(mensajeria);
+  });
 
-describe('RN-11 notificarProximidad - preferencias del acudiente', () => {
-  it.todo('notificarProximidad_conAcudienteConNotificacionesDesactivadas_noDebeEnviarleSMS');
-});
+  // RN-10 y RN-12
+  it('notificarProximidad_conTiempoValido_debeLlamarAlServicioConMensajeExacto', async () => {
+    const acudientes = [{ nombre: 'Juan', telefono: '3001234567', notificacionesActivas: true }];
+    const resultado = await notificador.notificarProximidad('ABC-123', 8, acudientes);
+    
+    expect(resultado).toBe(1);
+    expect(mensajeria.enviarSMS).toHaveBeenCalledTimes(1);
+    expect(mensajeria.enviarSMS).toHaveBeenCalledWith(
+      '3001234567', 
+      'RutaSegura: el bus ABC-123 llegará en aproximadamente 8 minutos.'
+    );
+  });
 
-describe('RN-12 notificarProximidad - contenido del mensaje', () => {
-  it.todo('notificarProximidad_debeEnviarMensajeConPlacaYMinutos');
-});
+  it('notificarProximidad_conTiempoMayorADiez_noDebeEnviarNada', async () => {
+    const acudientes = [{ nombre: 'Juan', telefono: '3001234567', notificacionesActivas: true }];
+    const resultado = await notificador.notificarProximidad('ABC-123', 15, acudientes);
+    
+    expect(resultado).toBe(0);
+    expect(mensajeria.enviarSMS).not.toHaveBeenCalled();
+  });
 
-describe('RN-13 notificarProximidad - tolerancia a fallos', () => {
-  it.todo('notificarProximidad_conUnEnvioFallido_debeContinuarYContarSoloExitosos');
+  it('notificarProximidad_conTiempoNull_noDebeEnviarNada', async () => {
+    const acudientes = [{ nombre: 'Juan', telefono: '3001234567', notificacionesActivas: true }];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const resultado = await notificador.notificarProximidad('ABC-123', null as any, acudientes);
+    
+    expect(resultado).toBe(0);
+    expect(mensajeria.enviarSMS).not.toHaveBeenCalled();
+  });
+
+  // RN-11
+  it('notificarProximidad_acudienteInactivo_noDebeEnviarSMS', async () => {
+    const acudientes = [{ nombre: 'Juan', telefono: '3001234567', notificacionesActivas: false }];
+    const resultado = await notificador.notificarProximidad('ABC-123', 5, acudientes);
+    
+    expect(resultado).toBe(0);
+    expect(mensajeria.enviarSMS).not.toHaveBeenCalled();
+  });
+
+  // RN-13
+  it('notificarProximidad_conFallosEnEnvio_debeContinuarYRetornarSoloLosExitosos', async () => {
+    const acudientes = [
+      { nombre: 'A', telefono: '1111111', notificacionesActivas: true },
+      { nombre: 'B', telefono: '2222222', notificacionesActivas: true },
+      { nombre: 'C', telefono: '3333333', notificacionesActivas: true }
+    ];
+    
+    mensajeria.enviarSMS
+      .mockRejectedValueOnce(new Error('Sin señal'))
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(true);
+    
+    const resultado = await notificador.notificarProximidad('ABC-123', 5, acudientes);
+    
+    expect(resultado).toBe(1);
+    expect(mensajeria.enviarSMS).toHaveBeenCalledTimes(3);
+  });
 });
